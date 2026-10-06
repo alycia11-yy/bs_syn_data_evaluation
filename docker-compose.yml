@@ -1,0 +1,40 @@
+# Two websites, one repository, two images.
+#
+#   export SERVER_DIR=/home/ailens/bs_review            # see README §6 for what goes in it
+#   export NICEGUI_STORAGE_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+#   docker compose up -d --build review                 # Stage 1 now
+#   docker compose up -d --build study                  # Stage 2 later, after the pool is drawn
+#
+# Both bind to localhost only; put them behind the usual HTTPS reverse proxy (Traefik).
+services:
+  review:
+    build: {context: ., dockerfile: Dockerfile.review}
+    image: bs-review:latest
+    container_name: bs_review
+    user: "10001:10001"
+    restart: unless-stopped
+    ports: ["127.0.0.1:8081:8080"]
+    environment:
+      NICEGUI_STORAGE_SECRET: "${NICEGUI_STORAGE_SECRET:?set a strong random value}"
+    volumes:
+      - ${SERVER_DIR:?}/stage1_split:/app/data/stage1_split:ro   # reviewer1..4 folders
+      - ${SERVER_DIR:?}/stage1:/app/data/stage1                  # manifest.jsonl + decisions
+      - ${SERVER_DIR:?}/config/users.json:/app/config/users.json:ro
+    security_opt: ["no-new-privileges:true"]
+
+  study:
+    build: {context: ., dockerfile: Dockerfile.study}
+    image: bs-study:latest
+    container_name: bs_study
+    user: "10001:10001"
+    restart: unless-stopped
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      NICEGUI_STORAGE_SECRET: "${NICEGUI_STORAGE_SECRET:?set a strong random value}"
+    volumes:
+      - ${SERVER_DIR:?}/stage2/pool:/app/data/stage2/pool:ro
+      - ${SERVER_DIR:?}/stage2/practice:/app/data/stage2/practice:ro
+      - ${SERVER_DIR:?}/stage2/plans:/app/data/stage2/plans
+      - ${SERVER_DIR:?}/stage2/outputs:/app/data/stage2/outputs
+      - ${SERVER_DIR:?}/config/users.json:/app/config/users.json:ro
+    security_opt: ["no-new-privileges:true"]

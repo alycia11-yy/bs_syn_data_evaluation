@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Document review tool: never commit data, answers or credentials ---
+data/
+results/
+config/users.json
+config/*.demo.json
+.nicegui/

@@ -1,0 +1,20 @@
+{
+  "seed": 20261006,
+  "one_version_per_document": true,
+  "max_layout_share": 0.10,
+  "strata": [
+    {"name": "set1_tampered", "side": "real", "sets": ["set1"], "label": "tampered", "n": 160, "balance_by": "method"},
+    {"name": "set2_tampered", "side": "real", "sets": ["set2"], "label": "tampered", "n": 160, "balance_by": "model"},
+    {"name": "real_authentic", "side": "real", "sets": ["set1", "set2"], "label": "authentic", "n": 180},
+    {"name": "set3_tampered", "side": "synthetic", "sets": ["set3"], "label": "tampered", "n": 160, "balance_by": "method"},
+    {"name": "set4_tampered", "side": "synthetic", "sets": ["set4"], "label": "tampered", "n": 160, "balance_by": "model"},
+    {"name": "synthetic_authentic", "side": "synthetic", "sets": ["set3", "set4"], "label": "authentic", "n": 180}
+  ],
+  "fallback_per_side": 500,
+  "repeats": 30,
+  "controls_dir": "data/controls",
+  "session_size": 150,
+  "pilot_size": 50,
+  "max_clicks": 3,
+  "zoom_steps": [100, 125, 150, 175, 200]
+}

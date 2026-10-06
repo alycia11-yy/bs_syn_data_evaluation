@@ -1,0 +1,28 @@
+# Stage 2 — realism study (raters R1..R4, pilot, admin). Built from the same repo as
+# Dockerfile.review.   docker build -f Dockerfile.study -t bs-study .
+FROM python:3.12-slim
+
+WORKDIR /app
+ENV APP_ENV=production HOST=0.0.0.0 PORT=8080 DATA_DIR=/app/data \
+    PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Code only. Mounted at runtime: the pool (read-only), practice images, plans and
+# ratings (writable) and config/users.json. data/stage2/key/ must never reach the server.
+COPY core/ ./core/
+COPY auth/ ./auth/
+COPY study/ ./study/
+COPY review/__init__.py review/selection.py ./review/
+COPY study_app.py create_user.py ./
+COPY config/study.json config/users.example.json ./config/
+
+RUN addgroup --gid 10001 appuser \
+    && adduser --uid 10001 --gid 10001 --disabled-password --gecos "" appuser \
+    && mkdir -p /app/.nicegui /app/data/stage2 && chown -R appuser:appuser /app
+USER 10001:10001
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz').close()"
+CMD ["python", "study_app.py"]

@@ -1,0 +1,5 @@
+{
+  "R1": {"password": "<bcrypt hash from create_user.py>", "role": "rater"},
+  "pilot1": {"password": "<bcrypt hash>", "role": "pilot"},
+  "jiayu": {"password": "<bcrypt hash>", "role": "admin"}
+}

@@ -1,0 +1,39 @@
+{
+  "root": "data",
+  "image_extensions": [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".bmp"],
+  "recursive": false,
+  "exclude_patterns": [".*"],
+  "dedupe_identical_files": true,
+  "review_only_tampered": true,
+  "link_authentic": true,
+  "boxes_format": "xyxy",
+  "label_values": {
+    "authentic": ["authentic", "auth", "real", "original", "0"],
+    "tampered": ["tampered", "tamp", "fake", "edited", "1"]
+  },
+  "view_templates": {"mask": "../masks/{stem}.png"},
+  "sets": {
+    "set1": {
+      "folder": "set1/30_dataset/images", "side": "real", "family": "handcrafted",
+      "filename_pattern": "^(?P<doc_id>.+?)(?:_t\\d+)?_c\\d+$",
+      "metadata": {"file": "../labels.jsonl", "key": "image",
+                   "fields": {"edit_type": "category", "image_id": "internal_id"}}
+    },
+    "set2": {
+      "folder": "set2/30_dataset/images", "side": "real", "family": "deep_learning",
+      "filename_pattern": "^(?P<doc_id>.+?)(?:_t\\d+)?_c\\d+$",
+      "metadata": {"file": "../labels.jsonl", "key": "image",
+                   "fields": {"edit_type": "category", "image_id": "internal_id"}}
+    },
+    "set3": {
+      "folder": "set3/30_dataset/images", "side": "synthetic", "family": "handcrafted",
+      "metadata": {"file": "../labels.jsonl", "key": "image",
+                   "fields": {"edit_type": "category", "doc_id": "group"}}
+    },
+    "set4": {
+      "folder": "set4/30_dataset/images", "side": "synthetic", "family": "deep_learning",
+      "metadata": {"file": "../labels.jsonl", "key": "image",
+                   "fields": {"edit_type": "category", "doc_id": "group"}}
+    }
+  }
+}

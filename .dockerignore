@@ -1,0 +1,9 @@
+data/
+results/
+config/users.json
+config/*.demo.json
+.git/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+.nicegui/
