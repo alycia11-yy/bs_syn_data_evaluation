@@ -338,3 +338,27 @@ def test_reviewer_folder_manifests_round_trip(tmp_path):
     write_reviewer_manifest(tmp_path / "reviewer2", [{"id": "set3/b", "set": "set3", "name": "b"}])
     assert [i["id"] for i in load_split_manifests(tmp_path)] == ["set1/a", "set3/b"]
     assert load_split_manifests(tmp_path / "missing") == []
+
+
+def test_keep_after_whole_document_reject_sticks(tmp_path):
+    items, _ = scan_datasets(_write_30_dataset(tmp_path))
+    t0, t1, auth = "set1/L1__abc_t0_c0.jpg", "set1/L1__abc_t1_c0.jpg", "set1/L1__abc_c0.jpg"
+    decisions = {t0: {**_decision(t0, REJECT, "broken_base", "document"),
+                      "timestamp": "2026-10-10T07:00:00Z"}}
+    sel = compute_selection(items, decisions, review_only_tampered=True)
+    assert sorted(sel["sets"]["set1"]["rejected"]) == [
+        "L1__abc_c0.jpg", "L1__abc_t0_c0.jpg", "L1__abc_t1_c0.jpg"]
+    # the user changes their mind about one version: it must stay kept
+    decisions[t1] = {**_decision(t1, KEEP), "timestamp": "2026-10-10T07:05:00Z"}
+    sel = compute_selection(items, decisions, review_only_tampered=True)
+    assert sel["sets"]["set1"]["selected"] == ["L1__abc_t1_c0.jpg"]
+    assert sorted(sel["sets"]["set1"]["rejected"]) == ["L1__abc_c0.jpg", "L1__abc_t0_c0.jpg"]
+    # an older own decision does not beat a newer document reject
+    decisions[t1]["timestamp"] = "2026-10-10T06:00:00Z"
+    sel = compute_selection(items, decisions, review_only_tampered=True)
+    assert "L1__abc_t1_c0.jpg" in sel["sets"]["set1"]["rejected"]
+    # keeping the image that carried the document reject lifts it for the whole document
+    decisions[t0] = {**_decision(t0, KEEP), "timestamp": "2026-10-10T07:10:00Z"}
+    sel = compute_selection(items, decisions, review_only_tampered=True)
+    assert sel["sets"]["set1"]["rejected"] == []
+    assert auth.split("/")[1] in sel["sets"]["set1"]["selected"]

@@ -8,7 +8,8 @@ A decision record (one line of data/stage1/decisions/decisions.jsonl):
 
 Resolution order for one image:
 1. a `scope: "document"` reject of any image of the same (side, doc_id) rejects it —
-   the base page is shared by every version of that document, in both paired sets;
+   the base page is shared by every version of that document, in both paired sets —
+   unless the image has its own decision made later than that reject;
 2. otherwise its own decision, or that of the identical file it duplicates;
 3. otherwise, with `review_only_tampered`, an authentic image is kept (it is never shown
    in Stage 1: its mask is all black, there is no edit to check);
@@ -57,11 +58,16 @@ def resolve_status(
     doc_rejects: Dict[Tuple[str, str], Dict[str, Any]],
     review_only_tampered: bool = False,
 ) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """Return (status, the decision record that produced it)."""
-    key = doc_key(item)
-    if key and key in doc_rejects:
-        return REJECT, doc_rejects[key]
+    """Return (status, the decision record that produced it).
+
+    A whole-document reject covers every image of the document, except one whose own
+    decision was made *after* it: pressing Keep on one version afterwards must stick.
+    """
     record = decisions.get(item["id"]) or decisions.get(canonical_id(item))
+    key = doc_key(item)
+    doc_reject = doc_rejects.get(key) if key else None
+    if doc_reject is not None and not _later(record, doc_reject):
+        return REJECT, doc_reject
     if record is None:
         if review_only_tampered and not needs_review(item, True):
             return KEEP, None
@@ -83,9 +89,16 @@ def document_rejects(
             continue
         item = items_by_id.get(record["id"])
         key = doc_key(item) if item else None
-        if key:
-            out[key] = record
+        if key and (key not in out or _later(record, out[key])):
+            out[key] = record                     # the newest whole-document reject
     return out
+
+
+def _later(record: Optional[Dict[str, Any]], other: Dict[str, Any]) -> bool:
+    """Was `record` made after `other`? The same record is not later than itself."""
+    if record is None or record is other:
+        return False
+    return str(record.get("timestamp", "")) > str(other.get("timestamp", ""))
 
 
 def compute_selection(

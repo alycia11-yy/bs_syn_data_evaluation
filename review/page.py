@@ -223,6 +223,10 @@ def _render_side_panel(data: ReviewData, view: ReviewView, item, refresh, advanc
         if record and record.get("id") != item["id"] and status != PENDING:
             ui.label(f"Decided on {record['id']} ({record.get('scope', 'image')})").classes(
                 "muted text-sm")
+            if record.get("scope") == "document":
+                ui.label("Whole document rejected there. Keep (Y) keeps just this version; "
+                         "to lift the reject for all, keep that image.").classes(
+                    "muted text-xs")
 
         ui.button("Keep  (Y)", icon="check", color="positive",
                   on_click=lambda: _decide(data, view, item, KEEP, "", advance)
@@ -276,7 +280,19 @@ def _decide(data: ReviewData, view: ReviewView, item, decision: str, reason: str
     position = next((n for n, it in enumerate(items) if it["id"] == item["id"]), view.index)
     next_id = items[position + 1]["id"] if position + 1 < len(items) else None
     scope = "document" if view.reject_scope_document else "image"
+    before, before_record = data.status(item, view.user)
     data.decide(item, decision, reviewer=view.user, reason=reason, scope=scope, note=view.note)
+    after, _ = data.status(item, view.user)
+    # Say what was saved: in a filtered list the image disappears, which can look like
+    # nothing happened.
+    text = f"Saved: {'kept' if after == KEEP else 'rejected'} {item['name']}"
+    if before_record and before_record.get("id") != item["id"] and before == REJECT \
+            and after == KEEP:
+        text += " (the rest of its document stays rejected)"
+    elif decision == REJECT and (scope == "document" or reason == "broken_base"):
+        text += " and every other version of this document"
+    ui.notify(text, type="positive" if after == KEEP else "warning", position="bottom",
+              timeout=2500)
     advance(next_id)
 
 
