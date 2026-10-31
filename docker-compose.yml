@@ -1,40 +1,63 @@
-# Two websites, one repository, two images.
+# Stage 2 — realism study website (the only hosted website; Stage 1 runs locally).
 #
-#   export SERVER_DIR=/home/ailens/bs_review            # see README §6 for what goes in it
-#   export NICEGUI_STORAGE_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
-#   docker compose up -d --build review                 # Stage 1 now
-#   docker compose up -d --build study                  # Stage 2 later, after the pool is drawn
+# Next to this file on the server:
+#   .env            NICEGUI_STORAGE_SECRET=…  (copy .env.example, see README §5)
+#   study_data/     made by `python scripts/package_stage2.py` on your machine:
+#     config/users.json            accounts: R1…R4 (rater), jiayu (admin), …
+#     config/study.json            study settings, frozen with the data
+#     controls/                    control pages (may be empty)
+#     stage2_split/R1 … R4/        the rater folders (read-only in the container)
+#     stage2/practice/             practice images + practice.json
+#     stage2/plans/                each rater's order        (written by the app)
+#     stage2/outputs/<rater>/      ratings.jsonl, ratings_latest.json (written by the app)
 #
-# Both bind to localhost only; put them behind the usual HTTPS reverse proxy (Traefik).
+#   sudo chown -R 10001:10001 study_data                 # the app runs as UID 10001
+#   python3 scripts/check_study_data.py study_data      # preflight, stdlib only
+#   docker compose up -d --build
+#   docker compose logs -f study                        # "Folder mode: R1 -> … images"
+#
+# Results: download study_data/stage2/outputs/ (any time — it is written as raters go).
 services:
-  review:
-    build: {context: ., dockerfile: Dockerfile.review}
-    image: bs-review:latest
-    container_name: bs_review
-    user: "10001:10001"
-    restart: unless-stopped
-    ports: ["127.0.0.1:8081:8080"]
-    environment:
-      NICEGUI_STORAGE_SECRET: "${NICEGUI_STORAGE_SECRET:?set a strong random value}"
-    volumes:
-      - ${SERVER_DIR:?}/stage1_split:/app/data/stage1_split:ro   # reviewer1..4 folders
-      - ${SERVER_DIR:?}/stage1:/app/data/stage1                  # manifest.jsonl + decisions
-      - ${SERVER_DIR:?}/config/users.json:/app/config/users.json:ro
-    security_opt: ["no-new-privileges:true"]
-
   study:
-    build: {context: ., dockerfile: Dockerfile.study}
-    image: bs-study:latest
-    container_name: bs_study
+    build:
+      context: .
+      dockerfile: Dockerfile.study
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.12-slim}
+    image: ${STUDY_IMAGE:-doctamper-study:latest}
+    container_name: doctamper_study
     user: "10001:10001"
     restart: unless-stopped
-    ports: ["127.0.0.1:8080:8080"]
+    ports:
+      # localhost only; the reverse proxy (Traefik / nginx) publishes it over HTTPS.
+      - "${STUDY_BIND:-127.0.0.1}:${STUDY_PORT:-8080}:8080"
     environment:
-      NICEGUI_STORAGE_SECRET: "${NICEGUI_STORAGE_SECRET:?set a strong random value}"
+      APP_ENV: production
+      NICEGUI_STORAGE_SECRET: "${NICEGUI_STORAGE_SECRET:?set it in .env (see .env.example)}"
+      # 1 = sign-in cookie over HTTPS only. 0 only for a plain-HTTP internal test.
+      HTTPS_ONLY: "${HTTPS_ONLY:-1}"
     volumes:
-      - ${SERVER_DIR:?}/stage2/pool:/app/data/stage2/pool:ro
-      - ${SERVER_DIR:?}/stage2/practice:/app/data/stage2/practice:ro
-      - ${SERVER_DIR:?}/stage2/plans:/app/data/stage2/plans
-      - ${SERVER_DIR:?}/stage2/outputs:/app/data/stage2/outputs
-      - ${SERVER_DIR:?}/config/users.json:/app/config/users.json:ro
-    security_opt: ["no-new-privileges:true"]
+      - ${STUDY_DATA_DIR:-./study_data}/config/users.json:/app/config/users.json:ro
+      - ${STUDY_DATA_DIR:-./study_data}/config/study.json:/app/config/study.json:ro
+      - ${STUDY_DATA_DIR:-./study_data}/controls:/app/data/controls:ro
+      - ${STUDY_DATA_DIR:-./study_data}/stage2_split:/app/data/stage2_split:ro
+      - ${STUDY_DATA_DIR:-./study_data}/stage2:/app/data/stage2
+      - study_sessions:/app/.nicegui        # keeps raters signed in across restarts
+    security_opt:
+      - no-new-privileges:true
+    # Behind Traefik instead of a published port, remove `ports` and uncomment:
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.docker.network=traefik"
+    #   - "traefik.http.routers.doctamper_study.rule=Host(`doctamper-study.ailensgroup.com`)"
+    #   - "traefik.http.routers.doctamper_study.entrypoints=websecure"
+    #   - "traefik.http.routers.doctamper_study.tls.certresolver=letsencryptresolver"
+    #   - "traefik.http.services.doctamper_study.loadbalancer.server.port=8080"
+    # networks: [default, traefik]
+
+volumes:
+  study_sessions:
+
+# networks:
+#   traefik:
+#     external: true

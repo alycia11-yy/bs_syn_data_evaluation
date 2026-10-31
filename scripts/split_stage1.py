@@ -25,9 +25,7 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
-import os
 import shutil
 import sys
 from collections import Counter, defaultdict
@@ -36,6 +34,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.datasets import load_dataset_config  # noqa: E402
+from core.folder_copy import original_label_rows, place  # noqa: E402
 from core.jsonstore import RecordStore, write_json_atomic  # noqa: E402
 from core.manifest import load_manifest, manifest_sha256  # noqa: E402
 from core.settings import DECISIONS_DIR, STAGE1_SPLIT_DIR  # noqa: E402
@@ -84,19 +83,19 @@ def main() -> None:
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
 
-    labels = _original_label_rows(config)
+    labels = original_label_rows(config)
     counts = {}
     for reviewer in args.reviewers:
         folder = out / reviewer
         rows, checksums, per_set_rows = [], [], defaultdict(list)
         for item in sorted(files_of[reviewer], key=lambda i: i["id"]):
-            digest = _place(root / item["file"], folder / item["file"], args.hardlink)
+            digest = place(root / item["file"], folder / item["file"], args.hardlink)
             if item.get("sha256") and digest != item["sha256"]:
                 sys.exit(f"Checksum mismatch after copying {item['file']} — stopping.")
             checksums.append((digest, item["file"]))
             mask = (item.get("views") or {}).get("mask")
             if mask:
-                checksums.append((_place(root / mask, folder / mask, args.hardlink), mask))
+                checksums.append((place(root / mask, folder / mask, args.hardlink), mask))
             label_row = labels.get((item["set"], item["name"]))
             if label_row:
                 per_set_rows[label_row[0]].append(label_row[1])
@@ -145,45 +144,6 @@ def _write_manifests_only(out: Path, items) -> None:
                        if owner == reviewer and f in by_file), key=lambda i: i["id"])
         write_reviewer_manifest(out / reviewer, mine)
         print(f"{reviewer}: manifest.jsonl with {len(mine)} images")
-
-
-def _original_label_rows(config) -> dict:
-    """(set, image file name) -> (labels.jsonl path relative to root, original row)."""
-    out = {}
-    for set_cfg in config.sets:
-        spec = set_cfg.metadata
-        if not spec:
-            continue
-        path = (set_cfg.folder / spec["file"]).resolve()
-        if not path.is_file():
-            continue
-        rel = path.relative_to(config.root.resolve()).as_posix()
-        key = spec.get("key", "file")
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                row = json.loads(line)
-                out[(set_cfg.name, Path(str(row.get(key, ""))).name)] = (rel, row)
-    return out
-
-
-def _place(source: Path, target: Path, hardlink: bool) -> str:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if hardlink:
-        try:
-            os.link(source, target)
-        except OSError:
-            shutil.copy2(source, target)
-    else:
-        shutil.copy2(source, target)
-    return _sha256(target)
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def _write_csv(path: Path, rows) -> None:

@@ -49,6 +49,8 @@ class ReviewData:
     # Where images are read from without a split (config root), and the reviewer folders.
     dataset_root: Optional[Path] = None
     split: Split = field(default_factory=Split)
+    # --only: review just these image ids (e.g. results/stage1_carryover/to_check.txt)
+    only: Optional[set] = None
     decisions: RecordStore = field(init=False)
     rechecks: RecordStore = field(init=False)
     by_id: Dict[str, Dict[str, Any]] = field(init=False)
@@ -99,6 +101,7 @@ class ReviewData:
                 if not item.get("duplicate_of")
                 and needs_review(item, self.review_only_tampered)
                 and (mine is None or item["id"] in mine)
+                and (self.only is None or item["id"] in self.only)
             ]
         self._caches[key] = (decisions, queue)
         return queue

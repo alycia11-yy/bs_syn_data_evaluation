@@ -93,11 +93,11 @@ def box_overlay(boxes: Sequence[Sequence[float]], colour: str = "#ef4444") -> st
 
 
 def click_markers(clicks: List[dict], radius: float) -> str:
-    """Numbered circles for the realism study: red = edit, amber = looks odd."""
+    """Numbered circles for the realism study (red by default; `color` per click)."""
     parts = []
     for n, click in enumerate(clicks, start=1):
-        colour = "#dc2626" if click.get("kind") == "edit" else (
-            "#f59e0b" if click.get("kind") == "odd" else "#2563eb")
+        colour = click.get("color") or ("#f59e0b" if click.get("kind") == "odd"
+                                        else "#dc2626")
         x, y = click["x"], click["y"]
         parts.append(
             f'<circle cx="{x}" cy="{y}" r="{radius}" fill="{colour}" fill-opacity="0.18" '

@@ -21,6 +21,7 @@ Selection: data/stage1/selection.json — selected / rejected / pending file nam
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import getpass
 import logging
 import os
@@ -52,9 +53,14 @@ def main() -> None:
     for warning in split.warnings:
         logger.warning(warning)
     args.users = _login_mode(args, split.active)
+    only = None
+    if args.only:
+        only = {ln.strip().split(",")[0] for ln in Path(args.only).read_text().splitlines()
+                if ln.strip() and not ln.startswith(("#", "id,"))}
+        logger.info("--only %s: %d images", args.only, len(only))
     data = ReviewData(items, recheck=args.recheck, recheck_fraction=args.recheck_fraction,
                       review_only_tampered=config.review_only_tampered,
-                      dataset_root=config.root, split=split)
+                      dataset_root=config.root, split=split, only=only)
     if not args.recheck:
         data.write_selection()
     views: dict[tuple, ReviewView] = {}
@@ -202,6 +208,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--recheck", action="store_true",
                         help="blind re-check of a random share of decided images")
     parser.add_argument("--recheck-fraction", type=float, default=0.05)
+    parser.add_argument("--only", help="file with one image id per line: review just those "
+                        "(e.g. results/stage1_carryover/to_check.txt)")
     parser.add_argument("--rebuild-manifest", action="store_true")
     parser.add_argument("--open-browser", action="store_true")
     args = parser.parse_args()

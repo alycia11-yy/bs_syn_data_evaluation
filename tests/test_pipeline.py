@@ -11,7 +11,7 @@ from core.datasets import load_dataset_config, normalise_boxes, scan_datasets
 from core.jsonstore import RecordStore
 from review.selection import KEEP, REJECT, cohen_kappa, compute_selection, recheck_sample
 from study.plan import Pool, build_plan
-from study.ratings import allowed_scores, validate
+from study.ratings import validate
 from study.sampling import assign_study_ids, draw_pool
 
 # --------------------------------------------------------------------------- #
@@ -154,24 +154,26 @@ def test_draw_pool_falls_back_when_labels_unknown():
     assert len(picked) == 20 and "no authentic/tampered labels" in warnings[0]
 
 
-def _pool(n_main=100, n_repeats=10, n_controls=4, session_size=30):
+def _pool(n_main=300, n_repeats=10, n_controls=4):
     picked = [("s", {"id": f"i{n}"}) for n in range(n_main)]
     controls = [{"stratum": "control_crude"} for _ in range(n_controls)]
     entries = assign_study_ids(picked, controls, n_repeats, seed=3)
     items = {e["study_id"]: {"kind": e["kind"], "repeat_of": e.get("repeat_of")}
              for e in entries}
-    return Pool("v1", 3, session_size, 10, 3, [100, 200], items)
+    return Pool("v1", 3, 10, 3, [100, 200], items)
 
 
-def test_plan_repeats_come_in_a_later_session_and_plans_are_stable():
+def test_plan_is_one_list_with_repeats_well_after_originals_and_stable():
+    from study.plan import REPEAT_GAP
+
     pool = _pool()
     plan = build_plan(pool, "R1", "rater")
-    flat_ids = [sid for s in plan["sessions"] for sid in s]
-    assert sorted(flat_ids) == sorted(pool.items)               # every entry exactly once
-    session_of = {sid: n for n, s in enumerate(plan["sessions"]) for sid in s}
+    assert len(plan["sessions"]) == 1                          # no sessions any more
+    order = plan["sessions"][0]
+    assert sorted(order) == sorted(pool.items)                 # every entry exactly once
     for sid, item in pool.items.items():
         if item["kind"] == "repeat":
-            assert session_of[sid] > session_of[item["repeat_of"]]
+            assert order.index(sid) - order.index(item["repeat_of"]) > REPEAT_GAP
     assert build_plan(pool, "R1", "rater") == plan
     assert build_plan(pool, "R2", "rater")["sessions"] != plan["sessions"]
     pilot = build_plan(pool, "P1", "pilot")
@@ -184,15 +186,15 @@ def test_plan_repeats_come_in_a_later_session_and_plans_are_stable():
 # --------------------------------------------------------------------------- #
 
 
-def test_score_must_agree_with_clicks():
-    edit, odd = {"x": 1, "y": 1, "kind": "edit"}, {"x": 1, "y": 1, "kind": "odd"}
-    assert allowed_scores([]) == (5,)
-    assert allowed_scores([odd]) == (3, 4)
-    assert allowed_scores([odd, edit]) == (1, 2)
-    assert validate([edit], 4, 3) is not None
-    assert validate([edit], 2, 3) is None
-    assert validate([edit] * 4, 1, 3) is not None
-    assert validate([{"x": 1, "y": 1, "kind": None}], 3, 3) is not None
+def test_validate_clicks_and_free_1_to_5_score():
+    click = {"x": 1, "y": 1}
+    assert validate([], 5, 3, no_traces=True) is None          # "No edit on this page"
+    assert validate([click], 5, 3, no_traces=True) is not None
+    assert validate([], 3, 3) is not None                      # a score needs a click
+    for score in (1, 2, 3, 4, 5):                              # any score with clicks
+        assert validate([click], score, 3) is None
+    assert validate([click], None, 3) is not None
+    assert validate([click] * 4, 2, 3) is not None             # at most max_clicks
 
 
 def test_record_store_latest_and_repair(tmp_path):
@@ -238,6 +240,8 @@ def _write_30_dataset(root):
                        "datasets.json").read_text())
     real["root"] = str(root)
     real["sets"] = {k: v for k, v in real["sets"].items() if k in ("set1", "set3")}
+    for k, v in real["sets"].items():      # the real config may point at 31_filtered: same layout
+        v["folder"] = f"{k}/30_dataset/images"
     path = root / "datasets.json"
     path.write_text(json.dumps(real))
     return load_dataset_config(path)
@@ -362,3 +366,87 @@ def test_keep_after_whole_document_reject_sticks(tmp_path):
     sel = compute_selection(items, decisions, review_only_tampered=True)
     assert sel["sets"]["set1"]["rejected"] == []
     assert auth.split("/")[1] in sel["sets"]["set1"]["selected"]
+
+
+# --------------------------------------------------------------------------- #
+# stage 2: clicks scored against the mask, rater folders
+# --------------------------------------------------------------------------- #
+
+
+def test_localize_against_mask_and_boxes(tmp_path):
+    from study.localize import localize
+
+    mask = tmp_path / "m.png"
+    img = Image.new("L", (200, 100), 0)
+    img.paste(255, (50, 40, 90, 60))                 # the edited word
+    img.save(mask)
+    clicks = [{"x": 70, "y": 50},                    # on the edit
+              {"x": 95, "y": 50},                    # 5 px beside it: within the margin
+              {"x": 180, "y": 10}]                   # far away
+    out = localize(clicks, mask_path=mask, boxes=[[50, 40, 90, 60]])
+    assert [c["hit"] for c in out["clicks"]] == [True, True, False]
+    assert out["localization"] == "mask" and out["margin_px"] == 10
+    assert out["edit_found"] and out["false_alarm"]
+    assert (out["regions_total"], out["regions_found"], out["localization_score"]) == (1, 1, 1)
+    black = tmp_path / "black.png"
+    Image.new("L", (200, 100), 0).save(black)        # an authentic page
+    assert localize(clicks[:1], mask_path=black)["false_alarm"]
+    by_box = localize(clicks, mask_path=None, boxes=[[50, 40, 90, 60]])
+    assert by_box["localization"] == "boxes" and by_box["edit_found"]
+    assert localize(clicks, mask_path=None) == {"localization": "none"}
+    authentic = localize(clicks[:1], mask_path=black)
+    assert authentic["regions_total"] == 0 and authentic["localization_score"] is None
+
+
+def test_two_edited_places_both_clicked_get_full_localization(tmp_path):
+    from study.localize import localize
+
+    mask = tmp_path / "m.png"
+    img = Image.new("L", (300, 100), 0)
+    img.paste(255, (20, 20, 60, 40))
+    img.paste(255, (200, 60, 260, 80))
+    img.save(mask)
+    boxes = [[20, 20, 60, 40], [200, 60, 260, 80]]
+    one = localize([{"x": 40, "y": 30}], mask_path=mask, boxes=boxes)
+    both = localize([{"x": 40, "y": 30}, {"x": 230, "y": 70}], mask_path=mask, boxes=boxes)
+    assert (one["regions_found"], one["localization_score"]) == (1, 0.5)
+    assert (both["regions_found"], both["localization_score"]) == (2, 1)
+    twice = localize([{"x": 30, "y": 30}, {"x": 50, "y": 30}], mask_path=mask, boxes=boxes)
+    assert twice["regions_found"] == 1                          # same place clicked twice
+
+
+def test_folder_pools_one_per_rater_blinded_ids(tmp_path):
+    import json as _json
+
+    from study.folders import load_folder_pools
+
+    for rater in ("R1", "R2"):
+        base = tmp_path / "split" / rater / "set3/30_dataset"
+        (base / "images").mkdir(parents=True)
+        (base / "masks").mkdir()
+        rows = []
+        for n in range(6):
+            Image.new("RGB", (40, 20), (n, 0, 0)).save(base / "images" / f"h{n}.png")
+            Image.new("L", (40, 20), 255 if n % 2 else 0).save(base / "masks" / f"h{n}.png")
+            rows.append({"id": f"set3/h{n}.png", "set": "set3", "name": f"h{n}.png",
+                         "file": f"set3/30_dataset/images/h{n}.png", "side": "synthetic",
+                         "doc_id": f"d{n}", "label": "tampered" if n % 2 else "authentic",
+                         "views": {"mask": f"set3/30_dataset/masks/h{n}.png"},
+                         "boxes": [], "width": 40, "height": 20})
+        (tmp_path / "split" / rater / "manifest.jsonl").write_text(
+            "".join(_json.dumps(r) + "\n" for r in rows))
+    config = tmp_path / "study.json"
+    config.write_text(_json.dumps({"seed": 1, "repeats": 2,
+                                   "controls_dir": str(tmp_path / "none")}))
+    pools, warnings = load_folder_pools(tmp_path / "split", config)
+    assert set(pools) == {"R1", "R2"} and not warnings
+    r1 = pools["R1"]
+    kinds = Counter(i["kind"] for i in r1.items.values())
+    assert kinds == {"main": 6, "repeat": 2}
+    assert all(sid.startswith("S") and "h" not in sid[1:] for sid in r1.items)
+    assert set(r1.items).isdisjoint(pools["R2"].items)       # ids differ per rater
+    sid = next(s for s, m in r1.meta.items() if m["label"] == "tampered")
+    scored = r1.localize(sid, [{"x": 20, "y": 10}])
+    assert scored["item_id"] == r1.meta[sid]["id"] and scored["edit_found"]
+    plan = build_plan(r1, "R1", "rater")
+    assert sorted(s for ss in plan["sessions"] for s in ss) == sorted(r1.items)

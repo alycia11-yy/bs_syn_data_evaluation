@@ -1,5 +1,5 @@
 [project]
-name = "bs_syn_data_evaluation"
+name = "doctamper_eval"
 version = "0.1.0"
 description = "Two-stage human review for the document tampering datasets: author check + realism study"
 requires-python = ">=3.10"

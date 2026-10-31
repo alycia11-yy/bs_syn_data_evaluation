@@ -1,0 +1,110 @@
+{
+ "about": "Reference examples for the realism study: 15 synthetic pages from documents NOT in the study pool, covering genuine pages in every capture (clean, JPEG, resized, scanned) and edited pages from every method (copy-move, re-typeset, PDF-source edit, AnyText, TextCtrl, UDiffText), from obvious to invisible, in a mixed order. No expected score: the admin (jiayu) rates them on the website (admin page, Reference examples) and those answers are the reference. Each page is described by several measures (score, clicks on/off the edit, outcome, edit visibility; study/outcome.py), not one score. The note says what was edited and what to look at. 'Save reference PDF' writes the PDF for the raters and data/stage2/practice/reference.json (shown to raters after each practice page). Candidates drawn with seed '20261006:training' (scripts/make_training.py --candidates), chosen and annotated by hand.",
+ "pool_split": "data/stage2_split (seed 20261006, manifest sha256 ed9ef3b847e0444c...)",
+ "reference": [
+  {
+   "id": "set3/5fb8d7b6c64fdf39.png",
+   "note": "Genuine page, clean digital copy. Nothing was edited."
+  },
+  {
+   "id": "set3/519971a951a206f5.jpg",
+   "note": "Edited: the statement date. It is in a different typeface (no serifs) from the labels and the page number next to it, although it is well aligned."
+  },
+  {
+   "id": "set3/529d772af9f87cd3.jpg",
+   "note": "Genuine page, scanned: slightly tilted and soft. The values are printed in a different typeface from the labels on the whole page; that is how this bank prints, not an edit."
+  },
+  {
+   "id": "set4/bdc8e072685f13f4.png",
+   "note": "Edited: the CIF number. Different typeface, larger and heavier than the date below, and the digits are badly formed."
+  },
+  {
+   "id": "set3/12f6b6c83ab3ccb3.png",
+   "note": "Edited: the statement date, changed inside the PDF before the page was made. The new date matches the font, size and position exactly; there is no visible trace."
+  },
+  {
+   "id": "set4/a300e65c88e9a1f2.jpg",
+   "note": "Edited: the day in the statement date (now \"10\"). Its \"1\" has a slightly different shape from the other digits on the line, which could also pass for the font."
+  },
+  {
+   "id": "set3/9279caf6d717665e.jpg",
+   "note": "Genuine page, scanned. Small oddities such as a stray hyphen in a product name or a slightly tilted line come from the document or the scan, not from an edit."
+  },
+  {
+   "id": "set4/84709b698773dad3.png",
+   "note": "Edited: the month \"Jul\" in the period line. It is darker and heavier than the rest of the same line."
+  },
+  {
+   "id": "set3/f6a53f4cc202bce4.jpg",
+   "note": "Edited: the first date of the period, by copying digits from elsewhere on the same page. The copied digits are the page's own, so there is no visible trace."
+  },
+  {
+   "id": "set4/e872d62883a5b5fc.jpg",
+   "note": "Edited: the name line. Its four words are in three different fonts, sizes and weights."
+  },
+  {
+   "id": "set3/b519a57b9d518e94.jpg",
+   "note": "Edited: the upper amount (9,484.49). The new digits match well; at most a very slight difference in weight against the amount below."
+  },
+  {
+   "id": "set4/f05e9b0da41e9128.jpg",
+   "note": "Edited: the first word of the name line. Its letters (look at the two \"I\"s) are drawn a little differently, and it is set tighter than the number next to it."
+  },
+  {
+   "id": "set3/7a687f20d637e8d8.jpg",
+   "note": "Genuine page. The mixed text sizes in the address block are part of the bank's layout, not an edit."
+  },
+  {
+   "id": "set4/db18b7b615c9ef15.jpg",
+   "note": "Edited: the word \"Divya\" in the first sentence. It is lighter and thinner than the words around it."
+  },
+  {
+   "id": "set3/e80e2c39b53cfc5d.jpg",
+   "note": "Edited: the name before \"SDN. BHD.\". It is in a narrower, different typeface from the rest of the address block."
+  }
+ ],
+ "not_used": {
+  "candidates": [
+   {
+    "id": "set3/33e72c39440f025a.png",
+    "note": "Genuine page. Expected: 5."
+   },
+   {
+    "id": "set3/2b428864c81dcbdd.jpg",
+    "note": "The account number was edited (one digit) and the change is invisible. Expected: 5. Not finding anything is normal for many edited pages."
+   },
+   {
+    "id": "set4/c9eb44e184f5b6aa.png",
+    "note": "The middle of the first address line was edited: thin, light, widely spaced letters with a broken join between two words. Expected: 1 with an edit click."
+   },
+   {
+    "id": "set3/49b682aa1796d63a.jpg",
+    "note": "Genuine page, slightly compressed image. Bold and plain text mixed in one header line is the bank's layout. Expected: 5 (or 4)."
+   },
+   {
+    "id": "set3/79507b4efdb4833f.jpg",
+    "note": "The statement date was edited; it is very close to the original font. Expected: 4 or 5."
+   },
+   {
+    "id": "set4/5d1887c74e067894.png",
+    "note": "The second date of the period was edited: different, lighter typeface, a dot instead of a slash and a missing digit in the year. Expected: 1 with an edit click."
+   },
+   {
+    "id": "set3/feae1ec6fa955689.png",
+    "note": "The postcode in the last address line was edited, invisibly. Expected: 5."
+   },
+   {
+    "id": "set3/356556017477d7a1.jpg",
+    "note": "Genuine page, resized and compressed (slightly soft text). Softness that is the same over the whole page is not an edit. Expected: 5 (or 4)."
+   },
+   {
+    "id": "set3/75b0a1301eafe0ab.jpg",
+    "note": "The registration number after the bank name was edited, invisibly. Expected: 5."
+   },
+   {
+    "id": "set4/9935535b8520f136.png",
+    "note": "The first word of the third address line (\"SEREMBAN\") was edited: taller, narrower and bolder than the rest of the line. Expected: 1 or 2 with an edit click."
+   }
+  ]
+ }
+}

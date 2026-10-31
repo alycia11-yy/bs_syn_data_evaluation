@@ -1,5 +1,5 @@
 # Stage 1 — dataset check (reviewer1..4 + admin). Built from the same repo as Dockerfile.study.
-#   docker build -f Dockerfile.review -t bs-review .
+#   docker build -f Dockerfile.review -t doctamper-review .
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -10,7 +10,8 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Code only. Mounted at runtime: data/stage1_split (the reviewer folders, read-only),
-# data/stage1 (manifest.jsonl + decisions, writable) and config/users.json.
+# data/stage1 (decisions, writable) and config/users.json. The reviewer folders carry
+# their own manifest.jsonl, so the full datasets are not needed on the server.
 COPY core/ ./core/
 COPY auth/ ./auth/
 COPY review/ ./review/

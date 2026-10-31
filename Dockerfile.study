@@ -1,6 +1,8 @@
-# Stage 2 — realism study (raters R1..R4, pilot, admin). Built from the same repo as
-# Dockerfile.review.   docker build -f Dockerfile.study -t bs-study .
-FROM python:3.12-slim
+# Stage 2 — realism study (raters R1..R4, pilot, admin): the hosted website.
+#   docker compose up -d --build        (see docker-compose.yml)
+# BASE_IMAGE: any Python >= 3.10 image, e.g. a copy in your own registry.
+ARG BASE_IMAGE=python:3.12-slim
+FROM ${BASE_IMAGE}
 
 WORKDIR /app
 ENV APP_ENV=production HOST=0.0.0.0 PORT=8080 DATA_DIR=/app/data \
@@ -9,14 +11,15 @@ ENV APP_ENV=production HOST=0.0.0.0 PORT=8080 DATA_DIR=/app/data \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Code only. Mounted at runtime: the pool (read-only), practice images, plans and
-# ratings (writable) and config/users.json. data/stage2/key/ must never reach the server.
+# Code only. Mounted at runtime (docker-compose.yml): config/users.json, the rater folders
+# data/stage2_split/ (read-only) and data/stage2/ (practice images, plus plans/ and
+# outputs/ written by the app). data/stage2/key/ must never reach the server.
 COPY core/ ./core/
 COPY auth/ ./auth/
 COPY study/ ./study/
 COPY review/__init__.py review/selection.py ./review/
 COPY study_app.py create_user.py ./
-COPY config/study.json config/users.example.json ./config/
+COPY config/study.json config/datasets.json config/users.example.json ./config/
 
 RUN addgroup --gid 10001 appuser \
     && adduser --uid 10001 --gid 10001 --disabled-password --gecos "" appuser \

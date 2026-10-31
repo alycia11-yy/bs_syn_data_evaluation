@@ -14,24 +14,24 @@
   "view_templates": {"mask": "../masks/{stem}.png"},
   "sets": {
     "set1": {
-      "folder": "set1/30_dataset/images", "side": "real", "family": "handcrafted",
+      "folder": "set1/31_filtered/images", "side": "real", "family": "handcrafted",
       "filename_pattern": "^(?P<doc_id>.+?)(?:_t\\d+)?_c\\d+$",
       "metadata": {"file": "../labels.jsonl", "key": "image",
                    "fields": {"edit_type": "category", "image_id": "internal_id"}}
     },
     "set2": {
-      "folder": "set2/30_dataset/images", "side": "real", "family": "deep_learning",
+      "folder": "set2/31_filtered/images", "side": "real", "family": "deep_learning",
       "filename_pattern": "^(?P<doc_id>.+?)(?:_t\\d+)?_c\\d+$",
       "metadata": {"file": "../labels.jsonl", "key": "image",
                    "fields": {"edit_type": "category", "image_id": "internal_id"}}
     },
     "set3": {
-      "folder": "set3/30_dataset/images", "side": "synthetic", "family": "handcrafted",
+      "folder": "set3/31_filtered/images", "side": "synthetic", "family": "handcrafted",
       "metadata": {"file": "../labels.jsonl", "key": "image",
                    "fields": {"edit_type": "category", "doc_id": "group"}}
     },
     "set4": {
-      "folder": "set4/30_dataset/images", "side": "synthetic", "family": "deep_learning",
+      "folder": "set4/31_filtered/images", "side": "synthetic", "family": "deep_learning",
       "metadata": {"file": "../labels.jsonl", "key": "image",
                    "fields": {"edit_type": "category", "doc_id": "group"}}
     }

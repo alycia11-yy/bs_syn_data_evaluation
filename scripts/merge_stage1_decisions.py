@@ -12,6 +12,13 @@ and merge them:
     python scripts/merge_stage1_decisions.py returned/reviewer1/stage1 returned/reviewer2/stage1 …
     python scripts/merge_stage1_decisions.py returned/*/stage1 --dry-run
 
+or pass the returned files themselves (any name; a file with "recheck" in its name is
+read as a re-check file, every other .jsonl as decisions):
+
+    python scripts/merge_stage1_decisions.py returned/reviewer1_decisions.jsonl \
+        returned/reviewer2_decisions.jsonl returned/reviewer3_decisions.jsonl \
+        returned/reviewer4_decisions.jsonl
+
 Every record is appended to data/stage1/decisions/decisions.jsonl (history kept, already
 merged records skipped, so running it twice is harmless); the latest decision per image
 wins by timestamp (core/jsonstore.py), whatever the merge order. Records for images
@@ -59,15 +66,9 @@ def main() -> None:
     for rel, directory, name, key in STORES:
         store = RecordStore(directory, name, key=key)
         seen = {_fingerprint(r) for r in store.history()}
-        added, problems = Counter(), []
-        for source in args.sources:
-            path = Path(source) / rel
-            if not path.is_file():
-                continue
-            for line in path.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
-                    continue
-                record = json.loads(line)
+        added, problems, batch = Counter(), [], []
+        for path in _files(args.sources, rel, name):
+            for record in _records(path):
                 if _fingerprint(record) in seen:
                     continue
                 if record.get("id") not in by_id:
@@ -79,9 +80,10 @@ def main() -> None:
                     problems.append(f"{record['id']}: decided by {record.get('reviewer')}, "
                                     f"but it is in {expected}'s folder")
                 if not args.dry_run:
-                    store.append({**record, "merged_from": str(path)})
+                    batch.append({**record, "merged_from": str(path)})
                 seen.add(_fingerprint(record))
                 added[record.get("reviewer", "?")] += 1
+        store.extend(batch)                 # one write for the whole merge
         if added or problems:
             print(f"{name}: {sum(added.values())} new records "
                   + ", ".join(f"{r} {n}" for r, n in sorted(added.items())))
@@ -102,6 +104,34 @@ def main() -> None:
     print("selection.json:", {s: c for s, c in selection["counts"].items()})
 
 
+def _files(sources, rel: str, name: str):
+    """The files of one store: <folder>/<rel> for a returned stage1 folder, or the
+    .jsonl file itself ("recheck" in its name -> re-check store, else decisions)."""
+    for source in map(Path, sources):
+        if source.is_dir():
+            if (source / rel).is_file():
+                yield source / rel
+        elif source.is_file():
+            is_recheck = "recheck" in source.name.lower()
+            if is_recheck == (name == "recheck"):
+                yield source
+        elif name == "decisions":
+            print(f"  NOTE {source}: not found")
+
+
+def _records(path: Path):
+    """Records of a returned file: a .jsonl history, or a *_latest.json map {id: record}
+    (what the app keeps next to the history; some reviewers return only that)."""
+    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".json":
+        data = json.loads(text)
+        yield from (data.values() if isinstance(data, dict) else data)
+        return
+    for line in text.splitlines():
+        if line.strip():
+            yield json.loads(line)
+
+
 def _fingerprint(record: dict) -> tuple:
     return (record.get("id"), record.get("reviewer"), record.get("timestamp"),
             record.get("decision"), record.get("reason"))
@@ -110,7 +140,7 @@ def _fingerprint(record: dict) -> tuple:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     parser.add_argument("sources", nargs="+",
-                        help="returned data/stage1 folders (containing decisions/…)")
+                        help="returned data/stage1 folders, or the returned decisions.jsonl files")
     parser.add_argument("--admins", nargs="*", default=["jiayu"],
                         help="accounts allowed to decide on any folder (default: jiayu)")
     parser.add_argument("--dry-run", action="store_true")

@@ -1,9 +1,19 @@
+# Keep the build context small and free of private files: the images copy code only;
+# data and accounts are mounted at runtime (README §5).
 data/
+study_data/
+.env
 results/
-config/users.json
+config/users*.json
+!config/users.example.json
 config/*.demo.json
 .git/
+.github/
+.venv/
 **/__pycache__/
 .pytest_cache/
 .ruff_cache/
 .nicegui/
+**/.DS_Store
+*.zip
+*.tar.gz

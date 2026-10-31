@@ -13,8 +13,9 @@
   "fallback_per_side": 500,
   "repeats": 30,
   "controls_dir": "data/controls",
-  "session_size": 150,
+  "practice_size": 1,
   "pilot_size": 50,
   "max_clicks": 3,
+  "click_margin_fraction": 0.5,
   "zoom_steps": [100, 125, 150, 175, 200]
 }

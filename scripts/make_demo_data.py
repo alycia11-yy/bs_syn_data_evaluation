@@ -157,7 +157,7 @@ def _write_configs(out: Path) -> None:
     study = json.loads((ROOT / "config" / "study.json").read_text())
     for stratum in study["strata"]:
         stratum["n"] = 30 if stratum["label"] == "tampered" else 34
-    study.update({"repeats": 6, "session_size": 40, "pilot_size": 10})
+    study.update({"repeats": 6, "pilot_size": 10})
     (ROOT / "config" / "study.demo.json").write_text(json.dumps(study, indent=2))
     print("wrote config/datasets.demo.json and config/study.demo.json")
 

@@ -102,7 +102,6 @@ def main() -> None:
         "pool_version": pool_version,
         "created_at": now_iso(),
         "seed": config["seed"],
-        "session_size": config.get("session_size", 150),
         "pilot_size": config.get("pilot_size", 50),
         "max_clicks": config.get("max_clicks", 3),
         "zoom_steps": config.get("zoom_steps", [100, 125, 150, 175, 200]),

@@ -77,6 +77,31 @@ class RecordStore:
             raise
         return record
 
+    def extend(self, records: List[Record]) -> int:
+        """Append many records under one lock with one fsync and one rewrite of the
+        latest map (append() per record rewrites the map every time: slow for merges)."""
+        if not records:
+            return 0
+        self.directory.mkdir(parents=True, exist_ok=True)
+        try:
+            with self._lock():
+                latest = self._reconcile()
+                with self.history_path.open("a", encoding="utf-8") as fh:
+                    for record in records:
+                        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                for record in records:
+                    key = self._key(record)
+                    if _is_newer(record, latest.get(key)):
+                        latest[key] = record
+                write_json_atomic(self.latest_path, latest)
+                self._cache = (self._stamp(), latest)
+        except BaseException:
+            self._cache = None
+            raise
+        return len(records)
+
     def history(self) -> List[Record]:
         return list(_iter_history(self.history_path))
 
@@ -135,6 +160,15 @@ def _is_newer(record: Record, current: Record | None) -> bool:
     return not (isinstance(new, str) and isinstance(old, str) and new < old)
 
 
+def _current_umask() -> int:
+    mask = os.umask(0)
+    os.umask(mask)
+    return mask
+
+
+_UMASK = _current_umask()
+
+
 def write_json_atomic(path: Path, data: Any) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -144,6 +178,9 @@ def write_json_atomic(path: Path, data: Any) -> None:
             json.dump(data, fh, ensure_ascii=False, indent=2)
             fh.flush()
             os.fsync(fh.fileno())
+        # mkstemp makes the file 0600; give it the normal permissions (0644 under the
+        # usual umask) so a container running as another user can still read it.
+        os.chmod(tmp, 0o666 & ~_UMASK)
         os.replace(tmp, path)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)

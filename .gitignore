@@ -219,9 +219,15 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# --- Document review tool: never commit data, answers or credentials ---
+
+# --- doctamper_eval: never commit data, answers, accounts or session storage ---
 data/
 results/
-config/users.json
+config/users*.json
+!config/users.example.json
 config/*.demo.json
 .nicegui/
+.DS_Store
+*.zip
+study_data/
+study_data.tar.gz

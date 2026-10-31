@@ -34,7 +34,10 @@ SELECTION_PATH = STAGE1_DIR / "selection.json"
 STAGE1_SPLIT_DIR = _path("STAGE1_SPLIT_DIR", DATA_DIR / "stage1_split")
 
 # ---- Stage 2: realism study ------------------------------------------------- #
-STAGE2_DIR = DATA_DIR / "stage2"
+STAGE2_DIR = _path("STAGE2_DIR", DATA_DIR / "stage2")
+# One folder per rater (scripts/split_stage2.py), same layout as the Stage 1 folders.
+# When it has rater folders, the study website uses them instead of pool/.
+STAGE2_SPLIT_DIR = _path("STAGE2_SPLIT_DIR", DATA_DIR / "stage2_split")
 # What the study server needs: the blinded item list and the renamed images.
 POOL_DIR = _path("POOL_DIR", STAGE2_DIR / "pool")
 POOL_ITEMS_PATH = POOL_DIR / "study_items.json"
