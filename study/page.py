@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from nicegui import ui
 
 from auth import current_role, current_username, logout_session
-from auth.middleware import require_active_session
+from auth.middleware import require_active_session, same_account
 from core.jsonstore import read_json
 from core.settings import PLANS_DIR, RATINGS_DIR
 from core.ui import box_overlay, click_markers, zoomable_image
@@ -59,6 +59,8 @@ def render_study_page(pool: Pool, has_practice: bool) -> None:
 
     @ui.refreshable
     def content() -> None:
+        if not same_account(username):
+            return
         done = store.latest()
         remaining = [sid for sid in order if sid not in done]
         n_done = len(order) - len(remaining)
@@ -84,7 +86,7 @@ def render_study_page(pool: Pool, has_practice: bool) -> None:
         )
 
     def _save(study_id: str, answer: Dict[str, Any]) -> None:
-        if not require_active_session():
+        if not require_active_session() or not same_account(username):
             return
         done = store.latest()
         nxt = next((sid for sid in order if sid not in done), None)

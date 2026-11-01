@@ -26,9 +26,15 @@ from nicegui import app, ui
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 
-from auth import credentials_available, current_role, is_authenticated
+from auth import credentials_available, current_role
 from auth.login_view import render_login_page
-from auth.middleware import AuthMiddleware, SecurityHeadersMiddleware, install_idle_watchdog
+from auth.middleware import (
+    AuthMiddleware,
+    SecurityHeadersMiddleware,
+    active_username,
+    install_idle_watchdog,
+    same_account,
+)
 from core.images import image_response
 from core.jsonstore import read_json
 from core.settings import (
@@ -89,12 +95,12 @@ def practice_image(index: int) -> Response:
 
 @ui.page("/login")
 def login_page(request: Request) -> None:
-    if is_authenticated():
-        ui.navigate.to("/")
-        return
+    # Always show the form: on a shared computer the next person must be able to sign in with their
+    # own account; before, an active session sent everyone straight to the last account's pages.
     render_login_page(
         session_expired=request.query_params.get("reason") == "session_expired",
         redirect_to=_safe_redirect(request.query_params.get("redirect_to", "/")),
+        signed_in_as=active_username(),
     )
 
 
@@ -127,7 +133,8 @@ def practice_page(start: int = 1) -> None:
     user = app.storage.user.get("username", "")
 
     def save(index, item, answer, result, user=user):
-        save_reference(user, index, item, answer, result)
+        if same_account(user):
+            save_reference(user, index, item, answer, result)
 
     # the admin's practice answers = the reference examples (saved, then "Save reference PDF");
     # raters' practice answers are not saved

@@ -26,6 +26,11 @@ def login_session(username: str) -> None:
     if not is_safe_username(username):
         raise ValueError("Unsafe username.")
     role = get_user_role(username)
+    # a new sign-in replaces whatever account this browser was signed in with (no leftovers)
+    previous = app.storage.user.get("username")
+    app.storage.user.clear()
+    if previous and previous != username:
+        logger.info("Browser switched account: %s -> %s", previous, username)
     app.storage.user.update({
         "authenticated": True,
         "username": username,

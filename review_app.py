@@ -153,7 +153,6 @@ def _login_mode(args: argparse.Namespace, split_active: bool) -> bool:
 
 def _install_login(views: dict) -> None:
     """Accounts from config/users.json; Stage 1 accepts the roles `reviewer` and `admin`."""
-    from auth import is_authenticated
     from auth.login_view import render_login_page
     from auth.middleware import AuthMiddleware, SecurityHeadersMiddleware
     app.add_middleware(AuthMiddleware)
@@ -161,12 +160,10 @@ def _install_login(views: dict) -> None:
 
     @ui.page("/login")
     def login_page(request: Request) -> None:
-        if is_authenticated():
-            ui.navigate.to("/")
-            return
+        from auth.middleware import active_username
         render_login_page(
             session_expired=request.query_params.get("reason") == "session_expired",
-            title="Stage 1 · Dataset check",
+            title="Stage 1 · Dataset check", signed_in_as=active_username(),
         )
 
 

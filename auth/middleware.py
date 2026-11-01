@@ -57,6 +57,26 @@ def require_active_session() -> bool:
     return True
 
 
+def active_username() -> str | None:
+    """The account this browser is signed in with, if the session is still active (not idle)."""
+    if not app.storage.user.get("authenticated", False) or _expire_if_idle():
+        return None
+    return app.storage.user.get("username")
+
+
+def same_account(username: str) -> bool:
+    """False when this tab was opened for `username` but the browser has since signed in as someone
+    else (another tab) or signed out: the tab is sent back to the start instead of saving anything."""
+    current = app.storage.user.get("username") if app.storage.user.get("authenticated") else None
+    if current == username:
+        return True
+    ui.notify(f"This tab was opened as {username}, but this browser is now "
+              + (f"signed in as {current}" if current else "signed out")
+              + ". Nothing was saved; the page is reloaded.", type="warning", multi_line=True)
+    ui.navigate.to("/")
+    return False
+
+
 def install_idle_watchdog() -> None:
     """Refresh activity on user input; send an idle tab back to the login page."""
     for event in ("click", "keydown", "pointerdown", "wheel"):
